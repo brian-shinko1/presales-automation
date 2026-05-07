@@ -1,13 +1,11 @@
+export const runtime = "edge"
+
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
-import { google } from "googleapis"
 import * as XLSX from "xlsx"
 
-function getAuth(accessToken: string) {
-  const oauth2 = new google.auth.OAuth2()
-  oauth2.setCredentials({ access_token: accessToken })
-  return oauth2
-}
+const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
+const DRIVE_API = "https://www.googleapis.com/drive/v3"
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -22,27 +20,22 @@ export async function GET(request: Request) {
 
   if (!fileId) return NextResponse.json({ error: "fileId required" }, { status: 400 })
 
-  try {
-    const authClient = getAuth(session.accessToken)
+  const headers = { Authorization: `Bearer ${session.accessToken}` }
 
+  try {
     if (mimeType === "application/vnd.google-apps.spreadsheet") {
-      const sheets = google.sheets({ version: "v4", auth: authClient })
-      const range = tab ? `${tab}` : undefined
-      const res = await sheets.spreadsheets.values.get({
-        spreadsheetId: fileId,
-        range: range ?? "A:ZZ",
-      })
-      return NextResponse.json({ rows: res.data.values ?? [] })
+      const range = tab || "A:ZZ"
+      const res = await fetch(`${SHEETS_API}/${fileId}/values/${encodeURIComponent(range)}`, { headers })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      return NextResponse.json({ rows: data.values ?? [] })
     }
 
     // Excel / CSV
-    const drive = google.drive({ version: "v3", auth: authClient })
-    const fileRes = await drive.files.get(
-      { fileId, alt: "media", supportsAllDrives: true },
-      { responseType: "arraybuffer" }
-    )
-    const buffer = Buffer.from(fileRes.data as ArrayBuffer)
-    const workbook = XLSX.read(buffer, { type: "buffer" })
+    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media&supportsAllDrives=true`, { headers })
+    if (!res.ok) throw new Error(await res.text())
+    const buffer = new Uint8Array(await res.arrayBuffer())
+    const workbook = XLSX.read(buffer, { type: "array" })
 
     const sheetName = tab && workbook.SheetNames.includes(tab)
       ? tab

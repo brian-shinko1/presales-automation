@@ -1,13 +1,11 @@
+export const runtime = "edge"
+
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
-import { google } from "googleapis"
 import * as XLSX from "xlsx"
 
-function getAuth(accessToken: string) {
-  const oauth2 = new google.auth.OAuth2()
-  oauth2.setCredentials({ access_token: accessToken })
-  return oauth2
-}
+const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
+const DRIVE_API = "https://www.googleapis.com/drive/v3"
 
 function rowsToTeamMembers(rows: unknown[][]) {
   // Skip header row; columns: Name, Role, Phone, Email
@@ -35,27 +33,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "fileId required" }, { status: 400 })
   }
 
-  try {
-    const authClient = getAuth(session.accessToken)
+  const headers = { Authorization: `Bearer ${session.accessToken}` }
 
+  try {
     if (mimeType === "application/vnd.google-apps.spreadsheet") {
-      const sheets = google.sheets({ version: "v4", auth: authClient })
-      const res = await sheets.spreadsheets.values.get({
-        spreadsheetId: fileId,
-        range: "A:D",
-      })
-      const rows = (res.data.values ?? []) as unknown[][]
+      const res = await fetch(`${SHEETS_API}/${fileId}/values/A:D`, { headers })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      const rows = (data.values ?? []) as unknown[][]
       return NextResponse.json({ teamMembers: rowsToTeamMembers(rows) })
     }
 
     // Excel / CSV
-    const drive = google.drive({ version: "v3", auth: authClient })
-    const fileRes = await drive.files.get(
-      { fileId, alt: "media", supportsAllDrives: true },
-      { responseType: "arraybuffer" }
-    )
-    const buffer = Buffer.from(fileRes.data as ArrayBuffer)
-    const workbook = XLSX.read(buffer, { type: "buffer" })
+    const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media&supportsAllDrives=true`, { headers })
+    if (!res.ok) throw new Error(await res.text())
+    const buffer = new Uint8Array(await res.arrayBuffer())
+    const workbook = XLSX.read(buffer, { type: "array" })
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" })
     return NextResponse.json({ teamMembers: rowsToTeamMembers(rows) })
