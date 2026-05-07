@@ -1,10 +1,8 @@
-import { google } from "googleapis"
+const DRIVE_API = "https://www.googleapis.com/drive/v3"
+const UPLOAD_API = "https://www.googleapis.com/upload/drive/v3"
 
-export async function getGoogleDriveClient(accessToken: string) {
-  const auth = new google.auth.OAuth2()
-  auth.setCredentials({ access_token: accessToken })
-  
-  return google.drive({ version: "v3", auth })
+function authHeaders(accessToken: string) {
+  return { Authorization: `Bearer ${accessToken}` }
 }
 
 export async function uploadToGoogleDrive(
@@ -13,63 +11,66 @@ export async function uploadToGoogleDrive(
   content: string,
   mimeType: string = "application/json"
 ) {
-  const drive = await getGoogleDriveClient(accessToken)
-  
-  const response = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      mimeType,
-    },
-    media: {
-      mimeType,
-      body: content,
-    },
-    fields: "id, name, webViewLink",
-  })
-  
-  return response.data
+  const metadata = JSON.stringify({ name: fileName, mimeType })
+  const boundary = "foo_bar_baz"
+  const body = [
+    `--${boundary}`,
+    "Content-Type: application/json; charset=UTF-8",
+    "",
+    metadata,
+    `--${boundary}`,
+    `Content-Type: ${mimeType}`,
+    "",
+    content,
+    `--${boundary}--`,
+  ].join("\r\n")
+
+  const res = await fetch(
+    `${UPLOAD_API}/files?uploadType=multipart&fields=id,name,webViewLink`,
+    {
+      method: "POST",
+      headers: {
+        ...authHeaders(accessToken),
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+      },
+      body,
+    }
+  )
+
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
 
-export async function listDriveFiles(
-  accessToken: string,
-  query?: string
-) {
-  const drive = await getGoogleDriveClient(accessToken)
-  
-  const response = await drive.files.list({
-    q: query,
-    fields: "files(id, name, mimeType, webViewLink, createdTime, modifiedTime)",
+export async function listDriveFiles(accessToken: string, query?: string) {
+  const params = new URLSearchParams({
+    fields: "files(id,name,mimeType,webViewLink,createdTime,modifiedTime)",
     orderBy: "modifiedTime desc",
-    pageSize: 50,
+    pageSize: "50",
   })
-  
-  return response.data.files || []
+  if (query) params.set("q", query)
+
+  const res = await fetch(`${DRIVE_API}/files?${params}`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  return data.files || []
 }
 
-export async function downloadDriveFile(
-  accessToken: string,
-  fileId: string
-) {
-  const drive = await getGoogleDriveClient(accessToken)
-  
-  const response = await drive.files.get({
-    fileId,
-    alt: "media",
+export async function downloadDriveFile(accessToken: string, fileId: string) {
+  const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    headers: authHeaders(accessToken),
   })
-  
-  return response.data
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
 
-export async function deleteDriveFile(
-  accessToken: string,
-  fileId: string
-) {
-  const drive = await getGoogleDriveClient(accessToken)
-  
-  await drive.files.delete({
-    fileId,
+export async function deleteDriveFile(accessToken: string, fileId: string) {
+  const res = await fetch(`${DRIVE_API}/files/${fileId}`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
   })
-  
+  if (!res.ok && res.status !== 204) throw new Error(await res.text())
   return true
 }
 
@@ -77,83 +78,90 @@ export async function listDriveItems(
   accessToken: string,
   parentId: string = "root"
 ) {
-  const drive = await getGoogleDriveClient(accessToken)
+  const q =
+    parentId === "root"
+      ? `trashed=false and ('root' in parents or sharedWithMe=true)`
+      : `'${parentId}' in parents and trashed=false`
 
-  const q = parentId === "root"
-    ? `trashed=false and ('root' in parents or sharedWithMe=true)`
-    : `'${parentId}' in parents and trashed=false`
-
-  const response = await drive.files.list({
+  const params = new URLSearchParams({
     q,
-    fields: "files(id, name, mimeType, webViewLink)",
+    fields: "files(id,name,mimeType,webViewLink)",
     orderBy: "folder,name",
-    pageSize: 100,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
+    pageSize: "100",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
   })
 
-  return response.data.files || []
+  const res = await fetch(`${DRIVE_API}/files?${params}`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  return data.files || []
 }
 
-export async function searchDriveFiles(
-  accessToken: string,
-  query: string
-) {
-  const drive = await getGoogleDriveClient(accessToken)
-
+export async function searchDriveFiles(accessToken: string, query: string) {
   const safe = query.replace(/'/g, "\\'")
-  const response = await drive.files.list({
+  const params = new URLSearchParams({
     q: `name contains '${safe}' and trashed=false`,
-    fields: "files(id, name, mimeType, webViewLink)",
+    fields: "files(id,name,mimeType,webViewLink)",
     orderBy: "name",
-    pageSize: 50,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
+    pageSize: "50",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
   })
 
-  return response.data.files || []
+  const res = await fetch(`${DRIVE_API}/files?${params}`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  return data.files || []
 }
 
 export async function listSubfolders(
   accessToken: string,
   parentId: string = "root"
 ) {
-  const drive = await getGoogleDriveClient(accessToken)
+  const q =
+    parentId === "root"
+      ? `mimeType='application/vnd.google-apps.folder' and trashed=false and ('root' in parents or sharedWithMe=true)`
+      : `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`
 
-  // For root, also include folders shared with the user
-  const q = parentId === "root"
-    ? `mimeType='application/vnd.google-apps.folder' and trashed=false and ('root' in parents or sharedWithMe=true)`
-    : `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`
-
-  const response = await drive.files.list({
+  const params = new URLSearchParams({
     q,
-    fields: "files(id, name)",
+    fields: "files(id,name)",
     orderBy: "name",
-    pageSize: 100,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
+    pageSize: "100",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
   })
 
-  return response.data.files || []
+  const res = await fetch(`${DRIVE_API}/files?${params}`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  return data.files || []
 }
 
-export async function searchFolders(
-  accessToken: string,
-  query: string
-) {
-  const drive = await getGoogleDriveClient(accessToken)
-
+export async function searchFolders(accessToken: string, query: string) {
   const safe = query.replace(/'/g, "\\'")
-  const response = await drive.files.list({
+  const params = new URLSearchParams({
     q: `mimeType='application/vnd.google-apps.folder' and name contains '${safe}' and trashed=false`,
-    fields: "files(id, name)",
+    fields: "files(id,name)",
     orderBy: "name",
-    pageSize: 50,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
+    pageSize: "50",
+    includeItemsFromAllDrives: "true",
+    supportsAllDrives: "true",
   })
 
-  return response.data.files || []
+  const res = await fetch(`${DRIVE_API}/files?${params}`, {
+    headers: authHeaders(accessToken),
+  })
+  if (!res.ok) throw new Error(await res.text())
+  const data = await res.json()
+  return data.files || []
 }
 
 export async function createFolder(
@@ -161,21 +169,20 @@ export async function createFolder(
   folderName: string,
   parentFolderId?: string
 ) {
-  const drive = await getGoogleDriveClient(accessToken)
-  
-  const fileMetadata: { name: string; mimeType: string; parents?: string[] } = {
+  const metadata: Record<string, unknown> = {
     name: folderName,
     mimeType: "application/vnd.google-apps.folder",
   }
-  
-  if (parentFolderId) {
-    fileMetadata.parents = [parentFolderId]
-  }
-  
-  const response = await drive.files.create({
-    requestBody: fileMetadata,
-    fields: "id, name, webViewLink",
+  if (parentFolderId) metadata.parents = [parentFolderId]
+
+  const res = await fetch(`${DRIVE_API}/files?fields=id,name,webViewLink`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(accessToken),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(metadata),
   })
-  
-  return response.data
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
 }
