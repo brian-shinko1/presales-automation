@@ -1,5 +1,7 @@
 "use client"
 
+export const runtime = "edge"
+
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileText, FolderKanban, Users, Lock } from "lucide-react"

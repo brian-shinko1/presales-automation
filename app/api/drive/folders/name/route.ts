@@ -1,6 +1,7 @@
+export const runtime = "edge"
+
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
-import { getGoogleDriveClient } from "@/lib/google-drive"
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -17,13 +18,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const drive = await getGoogleDriveClient(session.accessToken)
-    const res = await drive.files.get({
-      fileId: id,
-      fields: "id, name",
-      supportsAllDrives: true,
-    })
-    return NextResponse.json({ id: res.data.id, name: res.data.name })
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${id}?fields=id,name&supportsAllDrives=true`,
+      { headers: { Authorization: `Bearer ${session.accessToken}` } }
+    )
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    return NextResponse.json({ id: data.id, name: data.name })
   } catch (error) {
     console.error("Error fetching folder name:", error)
     return NextResponse.json({ error: "Folder not found" }, { status: 404 })

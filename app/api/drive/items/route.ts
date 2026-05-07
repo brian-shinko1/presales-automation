@@ -1,3 +1,5 @@
+export const runtime = "edge"
+
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 import { listDriveItems, searchDriveFiles } from "@/lib/google-drive"
