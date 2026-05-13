@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Plus, Search, FolderKanban, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, RefreshCw, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,8 @@ const emptyForm = {
 }
 
 export function ProjectTypesSection() {
+  const { data: session } = useSession()
+  const userId = session?.user?.email ?? ""
   const [projectTypes, setProjectTypes] = useState<ProjectType[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -32,11 +35,13 @@ export function ProjectTypesSection() {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
 
-  useEffect(() => { setProjectTypes(store.projectTypes.get()) }, [])
+  useEffect(() => {
+    if (userId) setProjectTypes(store.projectTypes.get(userId))
+  }, [userId])
 
   const persist = (updated: ProjectType[]) => {
     setProjectTypes(updated)
-    store.projectTypes.set(updated)
+    store.projectTypes.set(userId, updated)
   }
 
   const splitLines = (text: string) => text.split("\n").map((s) => s.trim()).filter(Boolean)

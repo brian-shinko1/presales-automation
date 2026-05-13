@@ -1,8 +1,8 @@
 import type { ProjectType, TeamMember } from "@/types"
 
 const KEYS = {
-  projectTypes: "presales_project_types",
-  teamMembers: "presales_team_members",
+  projectTypes: (userId: string) => `presales_project_types_${userId}`,
+  teamMembers: (userId: string) => `presales_team_members_${userId}`,
 }
 
 function load<T>(key: string): T[] {
@@ -21,11 +21,11 @@ function persist<T>(key: string, data: T[]): void {
 
 export const store = {
   projectTypes: {
-    get: (): ProjectType[] => load<ProjectType>(KEYS.projectTypes),
-    set: (data: ProjectType[]) => persist(KEYS.projectTypes, data),
+    get: (userId: string): ProjectType[] => load<ProjectType>(KEYS.projectTypes(userId)),
+    set: (userId: string, data: ProjectType[]) => persist(KEYS.projectTypes(userId), data),
   },
   teamMembers: {
-    get: (): TeamMember[] => load<TeamMember>(KEYS.teamMembers),
-    set: (data: TeamMember[]) => persist(KEYS.teamMembers, data),
+    get: (userId: string): TeamMember[] => load<TeamMember>(KEYS.teamMembers(userId)),
+    set: (userId: string, data: TeamMember[]) => persist(KEYS.teamMembers(userId), data),
   },
 }
