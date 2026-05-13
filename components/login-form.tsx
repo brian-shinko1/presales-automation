@@ -1,14 +1,34 @@
 "use client"
 
-import { handleSignIn } from "@/app/actions"
+import { useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, BarChart3, Users } from "lucide-react"
 
 export function LoginForm() {
-  const handleGoogleSignIn = () => {
-    handleSignIn()
-  }
+  const handleSignIn = useCallback(async () => {
+    const res = await fetch("/api/auth/csrf")
+    const { csrfToken } = await res.json()
+
+    const form = document.createElement("form")
+    form.method = "POST"
+    form.action = "/api/auth/signin/google"
+
+    const tokenInput = document.createElement("input")
+    tokenInput.type = "hidden"
+    tokenInput.name = "csrfToken"
+    tokenInput.value = csrfToken
+    form.appendChild(tokenInput)
+
+    const callbackInput = document.createElement("input")
+    callbackInput.type = "hidden"
+    callbackInput.name = "callbackUrl"
+    callbackInput.value = "/dashboard"
+    form.appendChild(callbackInput)
+
+    document.body.appendChild(form)
+    form.submit()
+  }, [])
 
   return (
     <div className="w-full max-w-md px-4">
@@ -45,9 +65,10 @@ export function LoginForm() {
               <p className="text-xs text-muted-foreground">Team Mgmt</p>
             </div>
           </div>
-          
-          <Button 
-            onClick={handleGoogleSignIn} 
+
+          <Button
+            type="button"
+            onClick={handleSignIn}
             className="w-full h-11 gap-3"
             variant="outline"
           >
@@ -71,7 +92,6 @@ export function LoginForm() {
             </svg>
             Sign in with Google
           </Button>
-
           <p className="text-xs text-center text-muted-foreground">
             By signing in, you agree to our Terms of Service and Privacy Policy
           </p>

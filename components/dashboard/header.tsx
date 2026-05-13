@@ -1,6 +1,6 @@
 "use client"
 
-import { handleSignOut } from "@/app/actions"
+import { useCallback } from "react"
 import { FileText, LogOut, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -20,6 +20,30 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ user }: DashboardHeaderProps) {
+  const handleSignOut = useCallback(async () => {
+    const res = await fetch("/api/auth/csrf")
+    const { csrfToken } = await res.json()
+
+    const form = document.createElement("form")
+    form.method = "POST"
+    form.action = "/api/auth/signout"
+
+    const tokenInput = document.createElement("input")
+    tokenInput.type = "hidden"
+    tokenInput.name = "csrfToken"
+    tokenInput.value = csrfToken
+    form.appendChild(tokenInput)
+
+    const callbackInput = document.createElement("input")
+    callbackInput.type = "hidden"
+    callbackInput.name = "callbackUrl"
+    callbackInput.value = "/login"
+    form.appendChild(callbackInput)
+
+    document.body.appendChild(form)
+    form.submit()
+  }, [])
+
   const initials = user?.name
     ?.split(" ")
     .map((n) => n[0])
