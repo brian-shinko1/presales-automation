@@ -1,13 +1,13 @@
 "use client"
 
-import { signIn } from "next-auth/react"
+import { handleSignIn } from "@/app/actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FileText, BarChart3, Users } from "lucide-react"
 
 export function LoginForm() {
   const handleGoogleSignIn = () => {
-    signIn("google", { callbackUrl: "/dashboard" })
+    handleSignIn()
   }
 
   return (

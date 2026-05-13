@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
-import { SessionProvider } from '@/components/session-provider'
 import './globals.css'
 
 const geistSans = Geist({ 
@@ -46,7 +45,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="bg-background">
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
-        <SessionProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
@@ -55,7 +53,6 @@ export default function RootLayout({
           >
             {children}
           </ThemeProvider>
-        </SessionProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
