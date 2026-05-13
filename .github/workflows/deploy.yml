@@ -26,6 +26,12 @@ jobs:
       - name: Build for Cloudflare
         run: pnpm run build:cf
 
+      - name: Bust stale asset cache
+        run: |
+          # Append a build-unique comment to each JS chunk to force Cloudflare
+          # to re-upload rather than reuse potentially corrupted cached copies
+          find .vercel/output/static/_next/static/chunks -name '*.js' -exec sh -c 'echo "/* $GITHUB_SHA */" >> "$1"' _ {} \;
+
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy .vercel/output/static --project-name presales-automation --branch main
         env:
