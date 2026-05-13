@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useSession } from "next-auth/react"
+import { useUserId } from "@/components/user-context"
 import { store } from "@/lib/store"
 import type { TeamMember } from "@/types"
 import { DriveFilePicker, type DriveFile } from "@/components/drive-file-picker"
@@ -64,8 +64,7 @@ const roleColors: Record<string, string> = {
 const emptyForm = { name: "", email: "", phone: "", role: "", hourlyRate: 150 }
 
 export function TeamSection() {
-  const { data: session } = useSession()
-  const userId = session?.user?.email ?? ""
+  const userId = useUserId()
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)

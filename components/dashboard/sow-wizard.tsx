@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useUserId } from "@/components/user-context"
 import {
   Check, ChevronRight, Building2, FolderKanban, Users, DollarSign, FileCheck,
   Plus, Trash2, RefreshCw, FileText, Link2, Copy, RotateCcw, ChevronUp, ChevronDown, Table2,
@@ -140,8 +140,7 @@ function PreviewTable({ rows }: { rows: unknown[][] }) {
 }
 
 export function SOWWizard() {
-  const { data: session } = useSession()
-  const userId = session?.user?.email ?? ""
+  const userId = useUserId()
   const [step, setStep] = useState(1)
   const [form, setForm] = useState(initialForm)
   const [docSections, setDocSections] = useState<DocSection[]>([])

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useUserId } from "@/components/user-context"
 import { Plus, Search, FolderKanban, MoreHorizontal, Pencil, Trash2, FileSpreadsheet, RefreshCw, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,8 +24,7 @@ const emptyForm = {
 }
 
 export function ProjectTypesSection() {
-  const { data: session } = useSession()
-  const userId = session?.user?.email ?? ""
+  const userId = useUserId()
   const [projectTypes, setProjectTypes] = useState<ProjectType[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
